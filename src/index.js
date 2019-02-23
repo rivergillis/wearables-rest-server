@@ -1,10 +1,12 @@
 // These needs to be the first thing imported in the app
 import "dotenv/config";
 
-// import http from "http";
+import http from "http";
 import app from "./app";
 
-const a = 2;
-console.log(a);
+const port = process.env.PORT || 3000;
+const server = http.createServer(app); // the express app is a request handler
 
-console.log(app);
+server.listen(port);
+
+console.log("Server running on http://localhost:3000");
