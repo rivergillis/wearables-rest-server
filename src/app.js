@@ -14,10 +14,15 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 mongoose.connect(
-  `mongodb+srv://admin:${
+  `mongodb://admin:${
     process.env.MONGO_ADMIN_PASSWORD
-  }@wearables-rest-0bowk.gcp.mongodb.net/test?retryWrites=true`,
-  { useNewUrlParser: true }
+  }@wearables-rest-shard-00-00-0bowk.gcp.mongodb.net:27017,wearables-rest-shard-00-01-0bowk.gcp.mongodb.net:27017,wearables-rest-shard-00-02-0bowk.gcp.mongodb.net:27017/test?ssl=true&replicaSet=wearables-rest-shard-0&authSource=admin&retryWrites=true`,
+  { useNewUrlParser: false },
+  err => {
+    if (err) {
+      return console.error(err);
+    }
+  }
 );
 
 // Route request handlers
