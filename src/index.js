@@ -1,4 +1,5 @@
-// These needs to be the first thing imported in the app
+// These need to be the first things imported in the app
+import "@babel/polyfill";
 import "dotenv/config";
 
 import http from "http";

@@ -1,6 +1,9 @@
 import express from "express";
 import morgan from "morgan";
 import bodyParser from "body-parser";
+import mongoose from "mongoose";
+
+import usersRouter from "./routes/users";
 
 const app = express();
 
@@ -10,7 +13,15 @@ app.use(morgan("dev"));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+mongoose.connect(
+  `mongodb+srv://admin:${
+    process.env.MONGO_ADMIN_PASSWORD
+  }@wearables-rest-0bowk.gcp.mongodb.net/test?retryWrites=true`,
+  { useNewUrlParser: true }
+);
+
 // Route request handlers
+app.use("/users", usersRouter);
 
 // Enable cross-origin-resource-sharing (possibly not needed, but stops some errors)
 app.use((req, res, next) => {
@@ -37,6 +48,7 @@ app.use((req, res, next) => {
 
 // handle errors from anywhere in the app
 app.use((error, req, res, next) => {
+  console.log("Error handler from app.js");
   res.status(error.status || 500);
   res.json({ error: { message: error.message } });
 });
