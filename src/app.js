@@ -4,6 +4,7 @@ import bodyParser from "body-parser";
 import mongoose from "mongoose";
 
 import usersRouter from "./routes/users";
+import devicesRouter from "./routes/devices";
 
 const app = express();
 
@@ -27,6 +28,7 @@ mongoose.connect(
 
 // Route request handlers
 app.use("/users", usersRouter);
+app.use("/devices", devicesRouter);
 
 // Enable cross-origin-resource-sharing (possibly not needed, but stops some errors)
 app.use((req, res, next) => {
