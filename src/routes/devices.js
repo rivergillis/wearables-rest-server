@@ -10,8 +10,8 @@ const router = express.Router();
 router.get("/", DevicesController.get_all_devices);
 
 // POST /users/ with a Device
-// BODY: name
+// BODY: name (str), timeout (str of zeit/ms format https://www.npmjs.com/package/ms)
 // Creates a new device listing
-router.post("/", DevicesController.create_new_device);
+router.post("/", checkAuth, DevicesController.create_new_device);
 
 export default router;
