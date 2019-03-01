@@ -1,7 +1,9 @@
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import ms from "ms";
 
 import Device from "../models/device";
+import { newErrorWithStatus } from "../lib/helpers";
 
 export const get_all_devices = async (req, res, next) => {
   try {
@@ -19,7 +21,7 @@ export const get_all_devices = async (req, res, next) => {
       // TODO: Search for devices with read access
       throw new Error("Not yet implemented");
     } else {
-      throw new Error("Invalid type property");
+      throw newErrorWithStatus("Invalid type property");
     }
     const response = { count: docs.length, devices: docs };
     return res.status(200).json(response);
@@ -32,7 +34,7 @@ export const create_new_device = async (req, res, next) => {
   try {
     const device = new Device({
       name: req.body.name,
-      timeout: req.body.timeout,
+      timeout: ms(req.body.timeout),
       ownerId: new mongoose.Types.ObjectId(req.userData.userId)
     });
     const result = await device.save();
@@ -41,6 +43,34 @@ export const create_new_device = async (req, res, next) => {
 
     console.log(result);
     res.status(201).json({ message: "Device created" });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+export const get_device_data = async (req, res, next) => {
+  // TODO: check if the user can get this device's info
+  try {
+    const device = await Device.findById(req.params.deviceId)
+      .select("-__v")
+      .exec();
+    return res.status(200).json({ device });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+export const device_send_data = async (req, res, next) => {
+  try {
+    const device = await Device.findById(req.params.deviceId)
+      .select("-__v")
+      .exec();
+    device.lastPayload = req.body.payload;
+    device.lastPayloadTimestamp = new Date();
+    device.markModified("lastPayloadTimestamp"); // required for dates
+    await device.save();
+
+    res.status(200).json({ message: "Device updated", device });
   } catch (err) {
     return next(err);
   }

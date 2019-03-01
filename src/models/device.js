@@ -15,7 +15,7 @@ import mongoose from "mongoose";
 const deviceSchema = mongoose.Schema({
   name: { type: String, required: true },
   // Format is zeit/ms (https://www.npmjs.com/package/ms) ex: '1s', '3s', '5s', ...
-  timeout: { type: String, required: true },
+  timeout: { type: Number, required: true },
   ownerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
