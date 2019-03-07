@@ -58,12 +58,25 @@ export const create_new_device = async (req, res, next) => {
 };
 
 export const get_device_data = async (req, res, next) => {
-  // TODO: check if the user can get this device's info
   try {
     const device = await Device.findById(req.params.deviceId)
       .select("-__v")
       .exec();
-    return res.status(200).json({ device });
+    if (!device) {
+      throw newErrorWithStatus("Device not found", 404);
+    }
+    if (req.body.adminKey === process.env.ADMIN_KEY) {
+      // Can read all if admin
+      return res.status(200).json({ device });
+    } else if (device.ownerId.toString() === req.userData.userId) {
+      // Can read all if owner
+      return res.status(200).json({ device });
+    } else if (device.readers.includes(req.userData.email)) {
+      // Can read some if reader
+      const { readers, ownerId, ...restOfDevice } = device.toObject();
+      return res.status(200).json({ device: restOfDevice });
+    }
+    throw newErrorWithStatus("Unauthorized user", 401);
   } catch (err) {
     return next(err);
   }
