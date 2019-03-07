@@ -7,7 +7,7 @@ const router = express.Router();
 
 // GET /devices/
 // HEADER: bearer auth
-// BODY: type (str -> options: 'owner', 'admin')
+// BODY: type (str -> options: 'owner', 'admin', 'read')
 // Returns a list of every device
 router.get("/", checkAuth, DevicesController.get_all_devices);
 

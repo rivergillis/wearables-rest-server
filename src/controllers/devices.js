@@ -4,7 +4,7 @@ import ms from "ms";
 
 import Device from "../models/device";
 import User from "../models/user";
-import { newErrorWithStatus, mongoArrayIncludesObjectId } from "../lib/helpers";
+import { newErrorWithStatus } from "../lib/helpers";
 
 export const get_all_devices = async (req, res, next) => {
   try {
@@ -14,13 +14,20 @@ export const get_all_devices = async (req, res, next) => {
         .select("-__v")
         .exec();
     } else if (req.body.type === "admin") {
-      // TODO: protect this somehow
+      if (req.body.adminKey != process.env.ADMIN_KEY) {
+        throw newErrorWithStatus("Invalid admin key", 401);
+      }
       docs = await Device.find()
         .select("-__v")
         .exec();
-    } else if (req.body.type == "read") {
-      // TODO: Search for devices with read access
-      throw new Error("Not yet implemented");
+    } else if (
+      req.body.type === "read" ||
+      req.body.type === "reader" ||
+      req.body.type === undefined
+    ) {
+      docs = await Device.find({ readers: req.userData.email })
+        .select("-__v -readers -ownerId")
+        .exec();
     } else {
       throw newErrorWithStatus("Invalid type property");
     }
@@ -105,7 +112,7 @@ export const device_add_reader = async (req, res, next) => {
     }
 
     // Enforce uniqueness
-    if (!mongoArrayIncludesObjectId(device.readers, req.body.readerEmail)) {
+    if (!device.readers.includes(req.body.readerEmail)) {
       device.readers.push(req.body.readerEmail);
       await device.save();
     }
