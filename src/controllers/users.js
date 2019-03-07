@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 import User from "../models/user";
+import { newErrorWithStatus } from "../lib/helpers";
 
 export const get_all_users = async (req, res, next) => {
   try {
@@ -61,8 +62,12 @@ export const login_user = async (req, res, next) => {
 
 export const delete_user = async (req, res, next) => {
   try {
-    await User.deleteOne({ _id: req.params.userId }).exec();
-    return res.status(200).json({ message: "user deleted" });
+    // Delete only if admin
+    if (req.body.adminKey === process.env.ADMIN_KEY) {
+      await User.deleteOne({ _id: req.params.userId }).exec();
+      return res.status(200).json({ message: "user deleted" });
+    }
+    throw newErrorWithStatus("Unauthorized to delete user", 401);
   } catch (err) {
     next(err);
   }

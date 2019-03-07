@@ -42,7 +42,6 @@ router.post(
 // DELETE /devices/:deviceId
 // HEADER: bearer auth
 // Deletes a device with the given ID.
-// TODO: Protect this somehow, use an admin key?
 router.delete("/:deviceId", checkAuth, DevicesController.delete_device);
 
 export default router;

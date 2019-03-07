@@ -83,7 +83,6 @@ export const get_device_data = async (req, res, next) => {
 };
 
 export const device_send_data = async (req, res, next) => {
-  // TODO: Make sure user is owner
   try {
     const device = await Device.findById(req.params.deviceId)
       .select("-__v")
@@ -91,6 +90,10 @@ export const device_send_data = async (req, res, next) => {
     if (!device) {
       throw newErrorWithStatus("Device not found", 404);
     }
+    if (device.ownerId.toString() != req.userData.userId) {
+      throw newErrorWithStatus("Not authorized to write to device", 401);
+    }
+
     device.lastPayload = req.body.payload;
     device.lastPayloadTimestamp = new Date();
     device.markModified("lastPayloadTimestamp"); // required for dates
@@ -138,6 +141,21 @@ export const device_add_reader = async (req, res, next) => {
 
 export const delete_device = async (req, res, next) => {
   try {
+    // Delete if admin
+    if (req.body.adminKey === process.env.ADMIN_KEY) {
+      await Device.deleteOne({ _id: req.params.deviceId }).exec();
+      return res.status(200).json({ message: "device deleted" });
+    }
+
+    // Otherwise find the device and delete if owner
+    const device = await Device.findById(req.params.deviceId).exec();
+    if (!device) {
+      throw newErrorWithStatus("Device not found", 404);
+    }
+    if (req.userData.userId != device.ownerId) {
+      throw newErrorWithStatus("Cannot delete device", 401);
+    }
+
     await Device.deleteOne({ _id: req.params.deviceId }).exec();
     return res.status(200).json({ message: "device deleted" });
   } catch (err) {

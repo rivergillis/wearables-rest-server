@@ -21,9 +21,7 @@ router.post("/signup", UsersController.sign_up_user);
 router.post("/login", UsersController.login_user);
 
 // DELETE /users/:userId
-// HEADERS: Bearer auth token
 // Deletes the user with id of userID
-// TODO: Protect this somehow, use an admin key?
-router.delete("/:userId", checkAuth, UsersController.delete_user);
+router.delete("/:userId", UsersController.delete_user);
 
 export default router;
