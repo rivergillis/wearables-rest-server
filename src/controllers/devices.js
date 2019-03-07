@@ -3,7 +3,8 @@ import mongoose from "mongoose";
 import ms from "ms";
 
 import Device from "../models/device";
-import { newErrorWithStatus } from "../lib/helpers";
+import User from "../models/user";
+import { newErrorWithStatus, mongoArrayIncludesObjectId } from "../lib/helpers";
 
 export const get_all_devices = async (req, res, next) => {
   try {
@@ -32,17 +33,18 @@ export const get_all_devices = async (req, res, next) => {
 
 export const create_new_device = async (req, res, next) => {
   try {
+    // If the user passes us a time in ms, use that, otherwise convert using zeit/ms
+    const timeoutCast = Number(req.body.timeout);
+
     const device = new Device({
       name: req.body.name,
-      timeout: ms(req.body.timeout),
+      timeout: isNaN(timeoutCast) ? ms(req.body.timeout) : timeoutCast,
       ownerId: new mongoose.Types.ObjectId(req.userData.userId)
     });
     const result = await device.save();
 
     // TODO: alter the user to add result._id to their 'writes' list?
-
-    console.log(result);
-    res.status(201).json({ message: "Device created" });
+    res.status(201).json({ message: "Device created", device: result });
   } catch (err) {
     return next(err);
   }
@@ -61,10 +63,14 @@ export const get_device_data = async (req, res, next) => {
 };
 
 export const device_send_data = async (req, res, next) => {
+  // TODO: Make sure user is owner
   try {
     const device = await Device.findById(req.params.deviceId)
       .select("-__v")
       .exec();
+    if (!device) {
+      throw newErrorWithStatus("Device not found", 404);
+    }
     device.lastPayload = req.body.payload;
     device.lastPayloadTimestamp = new Date();
     device.markModified("lastPayloadTimestamp"); // required for dates
@@ -73,5 +79,45 @@ export const device_send_data = async (req, res, next) => {
     res.status(200).json({ message: "Device updated", device });
   } catch (err) {
     return next(err);
+  }
+};
+
+export const device_add_reader = async (req, res, next) => {
+  // TODO: Make this atomic by using Device.update() https://stackoverflow.com/questions/33049707/push-items-into-mongo-array-via-mongoose
+  try {
+    const device = await Device.findById(req.params.deviceId)
+      .select("-__v")
+      .exec();
+    if (!device) {
+      throw newErrorWithStatus("Device not found", 404);
+    }
+    if (req.userData.userId != device.ownerId) {
+      throw newErrorWithStatus("Cannot write to device", 401);
+    }
+
+    // Try to find the user that we want to add as a reader
+    const user = await User.findById(req.body.readerId).exec();
+    if (!user) {
+      throw newErrorWithStatus("User not found for readerId provided", 404);
+    }
+
+    // Enforce uniqueness
+    if (!mongoArrayIncludesObjectId(device.readers, req.body.readerId)) {
+      device.readers.push(req.body.readerId);
+      await device.save();
+    }
+
+    res.status(201).json({ message: "Device updated", device });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+export const delete_device = async (req, res, next) => {
+  try {
+    await Device.deleteOne({ _id: req.params.deviceId }).exec();
+    return res.status(200).json({ message: "device deleted" });
+  } catch (err) {
+    next(err);
   }
 };

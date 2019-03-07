@@ -1,16 +1,7 @@
 import mongoose from "mongoose";
 
-// TODO: ownerID might be redundant here, since I plan on storing
-// device IDs in an 'owns' or 'writes' array for each user
-
-// TODO: Change to add a 'lastPayload' field that is an object that includes
-// a data point (mixed type) and a timestamp it was saved
-// It should also include an 'expires' timestamp using timeout, created by the server?
-
-// TODO: Change to add a 'timeout' field that is used to give every
-// timestamp an expiration date, when the device is considered offline
-// if we pass the expiration date without receiving new data
-// Use zeit/ms to do this? idk.
+// TODO: store 'readers' and 'writers' arrays of userIds,
+// then query using https://stackoverflow.com/questions/18148166/find-document-with-array-that-contains-a-specific-value
 
 const deviceSchema = mongoose.Schema({
   name: { type: String, required: true },
@@ -23,7 +14,8 @@ const deviceSchema = mongoose.Schema({
   },
   lastPayload: { type: Object },
   // use doc.markModified('lastPayloadTimestamp') if modifying this
-  lastPayloadTimestamp: { type: Date }
+  lastPayloadTimestamp: { type: Date },
+  readers: { type: [mongoose.Schema.Types.ObjectId], ref: "User" }
 });
 
 export default mongoose.model("Device", deviceSchema);
