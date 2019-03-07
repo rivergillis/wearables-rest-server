@@ -28,6 +28,11 @@ router.get("/:deviceId", checkAuth, DevicesController.get_device_data);
 // Updates the device payload
 router.post("/:deviceId", checkAuth, DevicesController.device_send_data);
 
+// POST /devices/:deviceId/readers with a readerEmail
+// HEADER: bearer auth
+// BODY: readerEmail: string of an email corresponding to a user
+// deviceId must be owned by the user being authenticated
+// Adds the user to the list of readers for the device
 router.post(
   "/:deviceId/readers",
   checkAuth,

@@ -96,18 +96,21 @@ export const device_add_reader = async (req, res, next) => {
     }
 
     // Try to find the user that we want to add as a reader
-    const user = await User.findById(req.body.readerId).exec();
+    const user = await User.findOne({ email: req.body.readerEmail }).exec();
     if (!user) {
-      throw newErrorWithStatus("User not found for readerId provided", 404);
+      throw newErrorWithStatus(
+        `User not found for email ${req.body.readerEmail}`,
+        404
+      );
     }
 
     // Enforce uniqueness
-    if (!mongoArrayIncludesObjectId(device.readers, req.body.readerId)) {
-      device.readers.push(req.body.readerId);
+    if (!mongoArrayIncludesObjectId(device.readers, req.body.readerEmail)) {
+      device.readers.push(req.body.readerEmail);
       await device.save();
     }
 
-    res.status(201).json({ message: "Device updated", device });
+    res.status(201).json({ message: "Reader added to device", device });
   } catch (err) {
     return next(err);
   }
