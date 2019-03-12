@@ -5,10 +5,11 @@ import * as DevicesController from "../controllers/devices";
 
 const router = express.Router();
 
-// GET /devices/
+// GET /devices?type=[type]
 // HEADER: bearer auth
-// BODY: type (str -> options: 'owner', 'admin', 'read')
+// Params: type (str -> options: 'owner', 'admin', 'read')
 // Returns a list of every device
+// Add an adminKey by accessing GET /devices?type=[type]&adminKey=[adminKey]
 router.get("/", checkAuth, DevicesController.get_all_devices);
 
 // POST /devices/ with a Device

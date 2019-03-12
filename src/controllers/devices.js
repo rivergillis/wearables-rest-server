@@ -9,21 +9,21 @@ import { newErrorWithStatus } from "../lib/helpers";
 export const get_all_devices = async (req, res, next) => {
   try {
     let docs = null;
-    if (req.body.type === "owner") {
+    if (req.query.type === "owner") {
       docs = await Device.find({ ownerId: req.userData.userId })
         .select("-__v")
         .exec();
-    } else if (req.body.type === "admin") {
-      if (req.body.adminKey != process.env.ADMIN_KEY) {
+    } else if (req.query.type === "admin") {
+      if (req.query.adminKey != process.env.ADMIN_KEY) {
         throw newErrorWithStatus("Invalid admin key", 401);
       }
       docs = await Device.find()
         .select("-__v")
         .exec();
     } else if (
-      req.body.type === "read" ||
-      req.body.type === "reader" ||
-      req.body.type === undefined
+      req.query.type === "read" ||
+      req.query.type === "reader" ||
+      req.query.type === undefined
     ) {
       docs = await Device.find({ readers: req.userData.email })
         .select("-__v -readers -ownerId")
