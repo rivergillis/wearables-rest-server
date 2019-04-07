@@ -15,7 +15,8 @@ const deviceSchema = mongoose.Schema({
   lastPayload: { type: Object },
   // use doc.markModified('lastPayloadTimestamp') if modifying this
   lastPayloadTimestamp: { type: Date },
-  readers: { type: [String] }
+  readers: { type: [String] },
+  readerRestrictions: { type: Object }
 });
 
 export default mongoose.model("Device", deviceSchema);

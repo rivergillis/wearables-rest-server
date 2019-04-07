@@ -65,15 +65,21 @@ export const get_device_data = async (req, res, next) => {
     if (!device) {
       throw newErrorWithStatus("Device not found", 404);
     }
-    if (req.body.adminKey === process.env.ADMIN_KEY) {
+    if (req.query.adminKey === process.env.ADMIN_KEY) {
       // Can read all if admin
       return res.status(200).json({ device });
     } else if (device.ownerId.toString() === req.userData.userId) {
       // Can read all if owner
       return res.status(200).json({ device });
     } else if (device.readers.includes(req.userData.email)) {
+      // TODO: use readerRestrictions[userEmail] to alter lastPayload (for a copy)...
       // Can read some if reader
-      const { readers, ownerId, ...restOfDevice } = device.toObject();
+      const {
+        readers,
+        ownerId,
+        readerRestrictions,
+        ...restOfDevice
+      } = device.toObject();
       return res.status(200).json({ device: restOfDevice });
     }
     throw newErrorWithStatus("Unauthorized user", 401);
@@ -134,6 +140,42 @@ export const device_add_reader = async (req, res, next) => {
     }
 
     res.status(201).json({ message: "Reader added to device", device });
+  } catch (err) {
+    return next(err);
+  }
+};
+
+export const device_add_reader_restriction = async (req, res, next) => {
+  try {
+    // Find the object and make sure we're the owner
+    const device = await Device.findById(req.params.deviceId)
+      .select("-__v")
+      .exec();
+    if (!device) {
+      throw newErrorWithStatus("Device not found", 404);
+    }
+    if (req.userData.userId != device.ownerId) {
+      throw newErrorWithStatus("Cannot write to device", 401);
+    }
+
+    // Try to find the user that we want to restrict
+    const user = await User.findOne({ email: req.body.readerEmail }).exec();
+    if (!user) {
+      throw newErrorWithStatus(
+        `User not found for email ${req.body.readerEmail}`,
+        404
+      );
+    }
+
+    if (!device.readerRestrictions) {
+      device.readerRestrictions = {};
+    }
+    device.readerRestrictions[req.body.readerEmail] = req.body.restriction;
+
+    console.log(device);
+    await device.save();
+
+    res.status(201).json({ message: "Restriction added to device", device });
   } catch (err) {
     return next(err);
   }

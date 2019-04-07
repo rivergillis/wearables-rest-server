@@ -40,6 +40,15 @@ router.post(
   DevicesController.device_add_reader
 );
 
+// POST /devices/:deviceId/readerRestrictions with a restriction
+// HEADER: bearer auth
+// BODY: restriction composed of
+router.post(
+  "/:deviceId/readerRestrictions",
+  checkAuth,
+  DevicesController.device_add_reader_restriction
+);
+
 // DELETE /devices/:deviceId
 // HEADER: bearer auth
 // Deletes a device with the given ID.
