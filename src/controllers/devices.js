@@ -4,7 +4,7 @@ import ms from "ms";
 
 import Device from "../models/device";
 import User from "../models/user";
-import { newErrorWithStatus } from "../lib/helpers";
+import { newErrorWithStatus, getRestrictedPayload } from "../lib/helpers";
 
 export const get_all_devices = async (req, res, next) => {
   try {
@@ -80,7 +80,15 @@ export const get_device_data = async (req, res, next) => {
         readerRestrictions,
         ...restOfDevice
       } = device.toObject();
-      return res.status(200).json({ device: restOfDevice });
+      const resultDevice = {
+        ...restOfDevice,
+        lastPayload: getRestrictedPayload(
+          restOfDevice,
+          readerRestrictions,
+          req.userData.email
+        )
+      };
+      return res.status(200).json({ device: resultDevice });
     }
     throw newErrorWithStatus("Unauthorized user", 401);
   } catch (err) {
@@ -103,6 +111,7 @@ export const device_send_data = async (req, res, next) => {
     device.lastPayload = req.body.payload;
     device.lastPayloadTimestamp = new Date();
     device.markModified("lastPayloadTimestamp"); // required for dates
+    device.markModified("lastPayload");
     await device.save();
 
     res.status(200).json({ message: "Device updated", device });
@@ -171,8 +180,7 @@ export const device_add_reader_restriction = async (req, res, next) => {
       device.readerRestrictions = {};
     }
     device.readerRestrictions[req.body.readerEmail] = req.body.restriction;
-
-    console.log(device);
+    device.markModified("readerRestrictions");
     await device.save();
 
     res.status(201).json({ message: "Restriction added to device", device });
