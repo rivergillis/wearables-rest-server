@@ -16,7 +16,7 @@ const roundValue = (value, roundAmt) => {
 
 // Add fuzz to data value
 const fuzzValue = (value, fuzzAmt) => {
-  return (value + fuzzAmt);
+  return value + fuzzAmt;
 };
 
 // User specified manipulations to Payload data
@@ -36,18 +36,16 @@ const getRestrictedValue = (value, restriction) => {
 
 // determine if timeframe meets START of daily property restriction
 // if within restricted timeframe return true else return false
-const timeFrameBegin = (timeBegin) => {
+const timeFrameBegin = timeBegin => {
   let now = new Date();
   let restriction = new Date(timeBegin);
 
   if (now.getHours() < restriction.getHours()) {
     return false;
-  }
-  else if (now.getHours() == restriction.getHours()) {
+  } else if (now.getHours() == restriction.getHours()) {
     if (now.getMinutes() < restriction.getMinutes()) {
       return false;
-    }
-    else if (now.getMinutes() == restriction.getMinutes()) {
+    } else if (now.getMinutes() == restriction.getMinutes()) {
       if (now.getSeconds() < restriction.getSeconds()) {
         return false;
       }
@@ -58,18 +56,16 @@ const timeFrameBegin = (timeBegin) => {
 
 // determine if timeframe meets END of daily property restriction
 // if within restricted timeframe return true else return false
-const timeFrameEnd = (timeEnd) => {
+const timeFrameEnd = timeEnd => {
   let now = new Date();
   let restriction = new Date(timeEnd);
 
   if (now.getHours() > restriction.getHours()) {
     return false;
-  }
-  else if (now.getHours() == restriction.getHours()) {
+  } else if (now.getHours() == restriction.getHours()) {
     if (now.getMinutes() > restriction.getMinutes()) {
       return false;
-    }
-    else if (now.getMinutes() == restriction.getMinutes()) {
+    } else if (now.getMinutes() == restriction.getMinutes()) {
       if (now.getSeconds() > restriction.getSeconds()) {
         return false;
       }
@@ -78,12 +74,11 @@ const timeFrameEnd = (timeEnd) => {
   return true;
 };
 
-const checkDay = (weekDays) => {
+const checkDay = weekDays => {
   let now = new Date();
 
   weekDays.forEach(day => {
-    if (now.getDay() == day)
-      return true;
+    if (now.getDay() == day) return true;
   });
   return false;
 };
@@ -97,7 +92,7 @@ const checkDay = (weekDays) => {
 // weekDays:  (int, array of values 0 - 6)
 // timeBegin: (long int, number ms from midnight)
 // timeEnd: (long int, number ms from midnight)
-// 
+//
 export const getRestrictedPayload = (
   device,
   readerRestrictions,
@@ -113,17 +108,19 @@ export const getRestrictedPayload = (
 
     // Check each restriction in the list to see if it applies to our payload
     restrictionList.forEach(restriction => {
-      const { property,
-              thresholdHigh,
-              thresholdLow,
-              timeBegin,
-              timeEnd,
-              weekDays} = restriction;
+      const {
+        property,
+        thresholdHigh,
+        thresholdLow,
+        timeBegin,
+        timeEnd,
+        weekDays
+      } = restriction;
       const thresholdHighExists = thresholdHigh !== undefined;
       const thresholdLowExists = thresholdLow !== undefined;
       const timeBeginExists = timeBegin !== undefined;
       const timeEndExists = timeEnd !== undefined;
-      const weekDaysExist = weekDays !== undefined;
+      const weekDaysExists = weekDays !== undefined;
 
       // If a property explicitly mentioned in the restriction, use that as the only property to check.
       if (property) {
@@ -157,14 +154,15 @@ export const getRestrictedPayload = (
           grantAccess = false;
         }
 
-        // If, after checking all property restrictions, access is still granted
-        // add the restricted value to the reader accessible payload
-        if (grantAccess) {
-          restrictedPayload[prop].value = getRestrictedValue(value, restriction);
+        // If we need to alter the payload, do so
+        if (!grantAccess) {
+          restrictedPayload[prop].value = getRestrictedValue(
+            value,
+            restriction
+          );
         }
         return;
-        
-      }); 
+      });
     });
 
     return restrictedPayload;

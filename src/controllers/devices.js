@@ -28,6 +28,24 @@ export const get_all_devices = async (req, res, next) => {
       docs = await Device.find({ readers: req.userData.email })
         .select("-__v -readers -ownerId")
         .exec();
+      // Now replace the payloads for any payloads where the current user's
+      // email is listed in the reader restrictions
+      const newDocs = docs.map(device => {
+        // This will automatically determine if we need to restrict based on the email
+        const obj = device.toObject();
+        obj.lastPayload = getRestrictedPayload(
+          obj,
+          obj.readerRestrictions,
+          req.userData.email
+        );
+
+        // Don't let the user see this
+        delete obj.readerRestrictions;
+        return obj;
+      });
+      // Now return the restricted documents
+      const response = { count: docs.length, devices: newDocs };
+      return res.status(200).json(response);
     } else {
       throw newErrorWithStatus("Invalid type property");
     }
