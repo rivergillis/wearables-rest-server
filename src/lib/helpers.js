@@ -21,7 +21,7 @@ const fuzzValue = (value, fuzzAmt) => {
 
 // User specified manipulations to Payload data
 const getRestrictedValue = (value, restriction) => {
-  const { roundToNearest, fuzz } = restriction;
+  const { roundToNearest, fuzz, dataBlock } = restriction;
 
   if (roundToNearest !== undefined) {
     value = roundValue(value, roundToNearest);
@@ -31,6 +31,10 @@ const getRestrictedValue = (value, restriction) => {
     value = fuzzValue(value, fuzz);
   }
 
+  if (dataBlock == 'true') {
+    value = "--DATA BLOCKED--";
+  }
+
   return value;
 };
 
@@ -38,7 +42,8 @@ const getRestrictedValue = (value, restriction) => {
 // if within restricted timeframe return true else return false
 const timeFrameBegin = timeBegin => {
   let now = new Date();
-  let restriction = new Date(timeBegin);
+  // 18:00:00 (HH:MM:SS) offset to scale user set time 
+  let restriction = new Date(timeBegin - 64800000);
 
   if (now.getHours() < restriction.getHours()) {
     return false;
@@ -58,7 +63,8 @@ const timeFrameBegin = timeBegin => {
 // if within restricted timeframe return true else return false
 const timeFrameEnd = timeEnd => {
   let now = new Date();
-  let restriction = new Date(timeEnd);
+  // 18:00:00 (HH:MM:SS) offset to scale user set time 
+  let restriction = new Date(timeEnd - 64800000);
 
   if (now.getHours() > restriction.getHours()) {
     return false;
@@ -76,10 +82,64 @@ const timeFrameEnd = timeEnd => {
 
 const checkDay = weekDays => {
   let now = new Date();
+  let match = false;
 
   weekDays.forEach(day => {
-    if (now.getDay() == day) return true;
+    if (now.getDay() == day) {
+      match = true;
+    }
   });
+
+  return match;
+};
+
+const checkThresholds = (value, thresholdHigh, thresholdLow) => {
+  ///// if thresholdHigh exists /////
+  if (thresholdHigh !== undefined) {
+    // if value is within restriction
+    if (value < thresholdHigh) {
+      // if thresholdLow exists
+      if (thresholdLow !== undefined) {
+        // if value is within restriction
+        if (value > thresholdLow) {
+          // restrict property value
+          return true;
+        }
+      } else {
+        // if theresholdHigh is met and there is no thresholdLow restrict property value
+        return true;
+      }
+    }
+  } else if (thresholdLow !== undefined && value > thresholdLow) {
+    // if thresholdLow exists and value is within restriction
+    return true;
+  }
+
+  return false;
+};
+
+const checkTime = (value, timeBegin, timeEnd) => {
+  ///// if timeBegin exists /////
+  if (timeBegin !== undefined) {
+    // if value is within restriction
+    if (timeFrameBegin(timeBegin)) {
+      // if timeEnd exists
+      if (timeEnd !== undefined) {
+        // if value is within restriction
+        if (timeFrameEnd(timeEnd)) {
+          // restrict property value
+          return true;
+        }
+      } else {
+        // if timeBegin is met and there is no timeEnd restrict property value
+        return true;
+      }
+    }
+  } else if (timeEnd !== undefined && timeFrameEnd(timeEnd)) {
+    // if timeEnd exists and value is within restriction
+    return true;
+  }
+
   return false;
 };
 
@@ -89,7 +149,8 @@ const checkDay = weekDays => {
 // thresholdLow:
 // roundToNearest:
 // fuzz:
-// weekDays:  (int, array of values 0 - 6)
+// dataBlock: (boolean)
+// weekDays:  (int array, values 0 - 6)
 // timeBegin: (long int, number ms from midnight)
 // timeEnd: (long int, number ms from midnight)
 //
@@ -129,39 +190,70 @@ export const getRestrictedPayload = (
       // Check each of the tagged properties against the restriction terms
       propertiesToCheck.forEach(prop => {
         const value = lastPayload[prop].value;
-        let grantAccess = true; // keeps track that all requirements are met
+        let restrict = false;
 
-        ///// for Max/Min threshold restrictions /////
-        if (thresholdHighExists && value >= thresholdHigh) {
-          // if thresholdHigh exists and value is outside permissions
-          grantAccess = false;
-        }
-        if (thresholdLowExists && value <= thresholdLow) {
-          // if thresholdLow exists and value is outside permissions
-          grantAccess = false;
+        if (thresholdHighExists || thresholdLowExists) {
+          if (checkThresholds(value, thresholdHigh, thresholdLow)) {
+            restrict = true;
+          } else {
+            restrict = false;
+          }
         }
 
-        ///// for checkIn restrictions /////
-        if (weekDaysExists && !checkDay(weekDays)) {
-          grantAccess = false;
+        if (timeBeginExists || timeEndExists) {
+          if (checkTime(value, timeBegin, timeEnd)) {
+            if (thresholdHighExists || thresholdLowExists) {
+              if (checkThresholds(value, thresholdHigh, thresholdLow)) {
+                restrict = true;
+              } else {
+                restrict = false;
+              }
+            } else {
+              restrict = true;
+            }
+          } else {
+            restrict = false;
+          }
         }
 
-        ///// for timeBegin/timeEnd restrictions /////
-        if (timeBeginExists && !timeFrameBegin(timeBegin)) {
-          grantAccess = false;
-        }
-        if (timeEndExists && !timeFrameEnd(timeEnd)) {
-          grantAccess = false;
+        if (weekDaysExists) {
+          if (checkDay(weekDays)) {
+            if (timeBeginExists || timeEndExists) {
+              if (checkTime(value, timeBegin, timeEnd)) {
+                if (thresholdHighExists || thresholdLowExists) {
+                  if (checkThresholds(value, thresholdHigh, thresholdLow)) {
+                    restrict = true;
+                  } else {
+                    restrict = false;
+                  }
+                } else {
+                  restrict = true;
+                }
+              } else {
+                restrict = false;
+              }
+            } else if (thresholdHighExists || thresholdLowExists) {
+              if (checkThresholds(value, thresholdHigh, thresholdLow)) {
+                restrict = true;
+              } else {
+                restrict = false;
+              }
+            } else {
+              restrict = true;
+            }
+          } else {
+            restrict = false;
+          }
         }
 
-        // If we need to alter the payload, do so
-        if (!grantAccess) {
+        if (restrict) {
+          // if all existing restrictions are met
+          // alter payload
           restrictedPayload[prop].value = getRestrictedValue(
             value,
             restriction
           );
         }
-        return;
       });
     });
 
