@@ -20,6 +20,7 @@ const fuzzValue = (value, fuzzAmt) => {
 };
 
 // User specified manipulations to Payload data
+// restricts reader's view of data
 const getRestrictedValue = (value, restriction) => {
   const { roundToNearest, fuzz, dataBlock } = restriction;
 
@@ -39,15 +40,17 @@ const getRestrictedValue = (value, restriction) => {
 };
 
 // determine if timeframe meets START of daily property restriction
-// if within restricted timeframe return true else return false
+// if within restricted timeframe return true, else return false
 const timeFrameBegin = timeBegin => {
   let now = new Date();
-  // 18:00:00 (HH:MM:SS) offset to scale user set time 
-  let restriction = new Date(timeBegin - 64800000);
+  let restriction = new Date(timeBegin);
 
-  if (now.getHours() < restriction.getHours()) {
+  // now.getTimezoneOffset() returns the time zone difference (in minutes) from current locale to UTC
+  // divide by 60 for hours difference
+  // add to restriction hours to accurately scale to user indicated START time
+  if (now.getHours() < (restriction.getHours() + (now.getTimezoneOffset() / 60))) {
     return false;
-  } else if (now.getHours() == restriction.getHours()) {
+  } else if (now.getHours() == (restriction.getHours() + (now.getTimezoneOffset() / 60))) {
     if (now.getMinutes() < restriction.getMinutes()) {
       return false;
     } else if (now.getMinutes() == restriction.getMinutes()) {
@@ -60,15 +63,17 @@ const timeFrameBegin = timeBegin => {
 };
 
 // determine if timeframe meets END of daily property restriction
-// if within restricted timeframe return true else return false
+// if within restricted timeframe return true, else return false
 const timeFrameEnd = timeEnd => {
   let now = new Date();
-  // 18:00:00 (HH:MM:SS) offset to scale user set time 
-  let restriction = new Date(timeEnd - 64800000);
+  let restriction = new Date(timeEnd);
 
-  if (now.getHours() > restriction.getHours()) {
+  // now.getTimezoneOffset() returns the time zone difference (in minutes) from current locale to UTC
+  // divide by 60 for hours difference
+  // add to restriction hours to accurately scale to user indicated END time
+  if (now.getHours() > (restriction.getHours() + (now.getTimezoneOffset() / 60))) {
     return false;
-  } else if (now.getHours() == restriction.getHours()) {
+  } else if (now.getHours() == (restriction.getHours() + (now.getTimezoneOffset() / 60))) {
     if (now.getMinutes() > restriction.getMinutes()) {
       return false;
     } else if (now.getMinutes() == restriction.getMinutes()) {
@@ -80,10 +85,13 @@ const timeFrameEnd = timeEnd => {
   return true;
 };
 
+// determine if today matches weekDay restriction
+// if today is restricted return true, else return false
 const checkDay = weekDays => {
   let now = new Date();
   let match = false;
 
+  // cycle through every day in weekDay array
   weekDays.forEach(day => {
     if (now.getDay() == day) {
       match = true;
@@ -93,53 +101,56 @@ const checkDay = weekDays => {
   return match;
 };
 
+// check that data value falls within user's threshold restrictions 
 const checkThresholds = (value, thresholdHigh, thresholdLow) => {
-  ///// if thresholdHigh exists /////
+
   if (thresholdHigh !== undefined) {
-    // if value is within restriction
+    // thresholdHigh exists
     if (value < thresholdHigh) {
-      // if thresholdLow exists
+      // value meets HIGH restriction
       if (thresholdLow !== undefined) {
-        // if value is within restriction
+        // thresholdLow exists
         if (value > thresholdLow) {
-          // restrict property value
+          // value meets LOW restriction
           return true;
         }
       } else {
-        // if theresholdHigh is met and there is no thresholdLow restrict property value
+        // thresholdLow NOT specified
         return true;
       }
     }
   } else if (thresholdLow !== undefined && value > thresholdLow) {
-    // if thresholdLow exists and value is within restriction
+    // thresholdLow exists and value is within restriction
     return true;
   }
 
+  // threshold values NOT MET || do NOT EXIST
   return false;
 };
 
-const checkTime = (value, timeBegin, timeEnd) => {
-  ///// if timeBegin exists /////
+// check that time NOW falls within user's time restrictions
+const checkTime = (timeBegin, timeEnd) => {
   if (timeBegin !== undefined) {
-    // if value is within restriction
+    // timeBegin exists
     if (timeFrameBegin(timeBegin)) {
-      // if timeEnd exists
+      // time NOW meets timeBegin restriction
       if (timeEnd !== undefined) {
-        // if value is within restriction
+        // timeEnd exists
         if (timeFrameEnd(timeEnd)) {
-          // restrict property value
+          // time NOW meets timeBegin && timeEnd restrictions
           return true;
         }
       } else {
-        // if timeBegin is met and there is no timeEnd restrict property value
+        // timeEnd not specified
         return true;
       }
     }
   } else if (timeEnd !== undefined && timeFrameEnd(timeEnd)) {
-    // if timeEnd exists and value is within restriction
+    // timeEnd exists && value is within restriction
     return true;
   }
 
+  // time values NOT MET || do NOT EXIST
   return false;
 };
 
@@ -190,69 +201,94 @@ export const getRestrictedPayload = (
       // Check each of the tagged properties against the restriction terms
       propertiesToCheck.forEach(prop => {
         const value = lastPayload[prop].value;
-        let restrict = false;
 
-        if (thresholdHighExists || thresholdLowExists) {
-          if (checkThresholds(value, thresholdHigh, thresholdLow)) {
-            restrict = true;
-          } else {
-            restrict = false;
-          }
-        }
-
-        if (timeBeginExists || timeEndExists) {
-          if (checkTime(value, timeBegin, timeEnd)) {
-            if (thresholdHighExists || thresholdLowExists) {
-              if (checkThresholds(value, thresholdHigh, thresholdLow)) {
-                restrict = true;
-              } else {
-                restrict = false;
-              }
-            } else {
-              restrict = true;
-            }
-          } else {
-            restrict = false;
-          }
-        }
-
+        // check user specified requirements
+        // account for nested dependencies
         if (weekDaysExists) {
+          // weekday restrictions exists
           if (checkDay(weekDays)) {
+            // weekday restrictions met
             if (timeBeginExists || timeEndExists) {
-              if (checkTime(value, timeBegin, timeEnd)) {
+              // time restrictions exist
+              if (checkTime(timeBegin, timeEnd)) {
+                // time restrictions met
                 if (thresholdHighExists || thresholdLowExists) {
+                  // threshold restrictions exits
                   if (checkThresholds(value, thresholdHigh, thresholdLow)) {
-                    restrict = true;
-                  } else {
-                    restrict = false;
+                    // weekday, time, & threshold restrictions met
+                    // alter payload
+                    restrictedPayload[prop].value = getRestrictedValue(
+                      value,
+                      restriction
+                    );
                   }
                 } else {
-                  restrict = true;
+                  // no threshold restrictions exist
+                  // weekday & time restrictions met
+                  // alter payload
+                  restrictedPayload[prop].value = getRestrictedValue(
+                    value,
+                    restriction
+                  );
                 }
-              } else {
-                restrict = false;
               }
             } else if (thresholdHighExists || thresholdLowExists) {
+              // time restrictions do NOT exist
+              // threshold restrictions exist
               if (checkThresholds(value, thresholdHigh, thresholdLow)) {
-                restrict = true;
-              } else {
-                restrict = false;
+                // weekday & threshold restrictions met
+                // alter payload
+                restrictedPayload[prop].value = getRestrictedValue(
+                  value,
+                  restriction
+                );
               }
             } else {
-              restrict = true;
+              // time & threshold restrictions do NOT exist
+              // weekday restrictions met
+              // alter payload
+              restrictedPayload[prop].value = getRestrictedValue(
+                value,
+                restriction
+              );
             }
-          } else {
-            restrict = false;
           }
-        }
-
-        if (restrict) {
-          // if all existing restrictions are met
-          // alter payload
-          restrictedPayload[prop].value = getRestrictedValue(
-            value,
-            restriction
-          );
+        } else if (timeBeginExists || timeEndExists) {
+          // weekday restrictions do NOT exist
+          // time restrictions exist
+          if (checkTime(timeBegin, timeEnd)) {
+            // time restrictions met
+            if (thresholdHighExists || thresholdLowExists) {
+              // threshold restrictions exist
+              if (checkThresholds(value, thresholdHigh, thresholdLow)) {
+                // time & threshold restrictions met
+                // alter payload
+                restrictedPayload[prop].value = getRestrictedValue(
+                  value,
+                  restriction
+                );
+              }
+            } else {
+              // threshold restrictions do NOT exist
+              // time restrictions met
+              // alter payload
+              restrictedPayload[prop].value = getRestrictedValue(
+                value,
+                restriction
+              );
+            }
+          }
+        } else if (thresholdHighExists || thresholdLowExists) {
+          // weekday & time restrictions do NOT exist
+          // threshold restrictions exist
+          if (checkThresholds(value, thresholdHigh, thresholdLow)) {
+            // threshold restrictions met
+            // alter payload
+            restrictedPayload[prop].value = getRestrictedValue(
+              value,
+              restriction
+            );
+          }
         }
       });
     });
