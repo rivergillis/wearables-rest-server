@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/user";
 import { newErrorWithStatus } from "../lib/helpers";
 
+// Returns a list of every user, used by the admin.
 export const get_all_users = async (req, res, next) => {
   try {
     const docs = await User.find()
@@ -16,6 +17,7 @@ export const get_all_users = async (req, res, next) => {
   }
 };
 
+// Signs up a new user, hashes and salts the pasword.
 export const sign_up_user = async (req, res, next) => {
   try {
     // Try to find a matching email to make sure we don't double-signup
@@ -36,6 +38,7 @@ export const sign_up_user = async (req, res, next) => {
   }
 };
 
+// Logs a user in. If succesfuly, returns a JWT with the user's email and userId encoded.
 export const login_user = async (req, res, next) => {
   try {
     // Attempt to find the user with with matching email.
@@ -60,6 +63,7 @@ export const login_user = async (req, res, next) => {
   }
 };
 
+// Delete a user, used only by an admin currently.
 export const delete_user = async (req, res, next) => {
   try {
     // Delete only if admin

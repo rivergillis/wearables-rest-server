@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const userSchema = mongoose.Schema({
+  // Use a regex to make sure the email is valid
   email: {
     type: String,
     required: true,

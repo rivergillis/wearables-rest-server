@@ -6,14 +6,18 @@ import Device from "../models/device";
 import User from "../models/user";
 import { newErrorWithStatus, getRestrictedPayload } from "../lib/helpers";
 
+// Returns every device that the user has access to for the given query type.
+// Readers will be restricted on every device that they have restrictions for.
 export const get_all_devices = async (req, res, next) => {
   try {
     let docs = null;
     if (req.query.type === "owner") {
+      // Return everything owned if owner
       docs = await Device.find({ ownerId: req.userData.userId })
         .select("-__v")
         .exec();
     } else if (req.query.type === "admin") {
+      // Return everything if admin with correct key
       if (req.query.adminKey != process.env.ADMIN_KEY) {
         throw newErrorWithStatus("Invalid admin key", 401);
       }
@@ -25,6 +29,7 @@ export const get_all_devices = async (req, res, next) => {
       req.query.type === "reader" ||
       req.query.type === undefined
     ) {
+      // Grab what we can reader, remove the readers list and owner id.
       docs = await Device.find({ readers: req.userData.email })
         .select("-__v -readers -ownerId")
         .exec();
@@ -56,6 +61,8 @@ export const get_all_devices = async (req, res, next) => {
   }
 };
 
+// Create a new device, returns the device (which includes the deviceId).
+// The creator becomes the device owner.
 export const create_new_device = async (req, res, next) => {
   try {
     // If the user passes us a time in ms, use that, otherwise convert using zeit/ms
@@ -75,6 +82,8 @@ export const create_new_device = async (req, res, next) => {
   }
 };
 
+// Returns the data for a single device. Owners receive all data,
+// Readers will receive whatever is not restricted.
 export const get_device_data = async (req, res, next) => {
   try {
     const device = await Device.findById(req.params.deviceId)
@@ -114,6 +123,8 @@ export const get_device_data = async (req, res, next) => {
   }
 };
 
+// Send a payload to a device. Done by the device's owner.
+// Attaches a timestamp to the payload automatically.
 export const device_send_data = async (req, res, next) => {
   try {
     const device = await Device.findById(req.params.deviceId)
@@ -138,6 +149,8 @@ export const device_send_data = async (req, res, next) => {
   }
 };
 
+// Adds a reader to the readers list for a device.
+// Can be done by the device owner. The reader must exist.
 export const device_add_reader = async (req, res, next) => {
   // TODO: Make this atomic by using Device.update() https://stackoverflow.com/questions/33049707/push-items-into-mongo-array-via-mongoose
   try {
@@ -172,6 +185,7 @@ export const device_add_reader = async (req, res, next) => {
   }
 };
 
+// Adds a new reader restriction to a device. Can be done by the owner of the device.
 export const device_add_reader_restriction = async (req, res, next) => {
   try {
     // Find the object and make sure we're the owner
@@ -194,9 +208,11 @@ export const device_add_reader_restriction = async (req, res, next) => {
       );
     }
 
+    // Create the root restrictions obj if it doesn't already exist, then add the restriction.
     if (!device.readerRestrictions) {
       device.readerRestrictions = {};
     }
+    // Key for the object is the readers email. Ensures easy access later.
     device.readerRestrictions[req.body.readerEmail] = req.body.restriction;
     device.markModified("readerRestrictions");
     await device.save();
@@ -207,6 +223,7 @@ export const device_add_reader_restriction = async (req, res, next) => {
   }
 };
 
+// Delete a device. Can be done if owner or admin.
 export const delete_device = async (req, res, next) => {
   try {
     // Delete if admin

@@ -14,11 +14,12 @@ app.use(morgan("dev"));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+// Change this connection string to wherever you are hosting your MongoDB instance
 mongoose.connect(
   `mongodb://admin:${
     process.env.MONGO_ADMIN_PASSWORD
   }@wearables-rest-shard-00-00-0bowk.gcp.mongodb.net:27017,wearables-rest-shard-00-01-0bowk.gcp.mongodb.net:27017,wearables-rest-shard-00-02-0bowk.gcp.mongodb.net:27017/test?ssl=true&replicaSet=wearables-rest-shard-0&authSource=admin&retryWrites=true`,
-  { useNewUrlParser: false },
+  { useNewUrlParser: false }, // mongodb on GCP needs this right now
   err => {
     if (err) {
       return console.error(err);
@@ -46,7 +47,7 @@ app.use((req, res, next) => {
   next(); // forward the request so that we don't block it
 });
 
-// Handle requests that made it past everything above
+// Handle requests that made it past everything above (with a 404)
 app.use((req, res, next) => {
   const error = new Error("Not found");
   error.status = 404;
